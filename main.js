@@ -1,4 +1,21 @@
 const Discord = require('discord.js');
+const colors = require('colors/safe');
+const moment = require('moment');
+
+require('better-logging')(console, {
+	format: (ctx) => `${ctx.time} ${ctx.date} ${ctx.type} >>> ${ctx.msg}`,
+	color: {
+		base: colors.gray,
+		type: {
+			debug: colors.green,
+			info: colors.white,
+			log: colors.gray,
+			error: colors.red,
+			warn: colors.yellow,
+		},
+	},
+	saveToFile: `./logs/${moment().format('YYYY')}/${moment().format('MM')}/${moment().format('DD')}.log`,
+});
 require('dotenv').config();
 
 const client = new Discord.Client({
@@ -33,9 +50,24 @@ const client = new Discord.Client({
 		Discord.Partials.User,
 	],
 });
+client.SlashCommands = new Discord.Collection();
 
-client.once(Discord.Events.ClientReady, async (clientReady) => {
-	console.log('Ready as ' + clientReady.user.username);
-});
+(async () => {
+	try {
+		const DiscordBotToken = process.env.DiscordBotToken;
+		if (!DiscordBotToken) {
+			console.error(colors.red('Discord Bot Token is not defined or passed incorrectly! Please check your .env file and try again.\n'));
+			process.exit();
+		}
 
-client.login(process.env.DiscordBotToken);
+		const handlers = ['events', 'interactionCommands'];
+		for (const handler of handlers) {
+			await require('./handlers/' + handler)(client);
+		}
+
+		await client.login(DiscordBotToken);
+	}
+	catch (error) {
+		console.error(colors.red(error.stack || error));
+	}
+})();
